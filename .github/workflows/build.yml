@@ -1,0 +1,53 @@
+name: Build PixelOS for Panther (Android 14)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openjdk-17-jdk bc bison build-essential curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses5-dev lib32readline-dev lib32z1-dev liblz4-tool libncurses5 libncurses5-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools x11proto-core-dev xsltproc zip zlib1g-dev repo
+
+      - name: Create working directory
+        run: |
+          mkdir ~/pixelos && cd ~/pixelos
+          git config --global user.name "ONLY1WAY2DIE"
+          git config --global user.email "tobias@example.com"
+
+      - name: Init repo (PixelOS Android 14)
+        run: |
+          cd ~/pixelos
+          repo init -u https://github.com/PixelOS-AOSP/manifest -b fourteen --depth=1
+
+      - name: Sync source
+        run: |
+          cd ~/pixelos
+          repo sync -j$(nproc --all)
+
+      - name: Clone device tree for Pixel 7 (panther)
+        run: |
+          cd ~/pixelos
+          git clone https://github.com/PixelExperience-Devices/device-google-panther device/google/panther
+          git clone https://github.com/TheMuppets/proprietary_vendor_google vendor/google
+          git clone https://github.com/GrapheneOS/kernel_google_redbull kernel/google/panther
+
+      - name: Build ROM
+        run: |
+          cd ~/pixelos
+          source build/envsetup.sh
+          lunch aosp_panther-userdebug
+          mka bacon
+
+      - name: Upload ROM artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: PixelOS-Panther-A14
+          path: ~/pixelos/out/target/product/panther/*.zip
