@@ -47,7 +47,7 @@ jobs:
           mka bacon
 
       - name: Upload ROM artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v2
         with:
           name: PixelOS-Panther-A14
           path: ~/pixelos/out/target/product/panther/*.zip
