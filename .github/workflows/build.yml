@@ -1,131 +1,133 @@
 name: Build Hide Gesture Overlay APK (Fully Embedded)
 
-on: workflow_dispatch:
+on:
+  workflow_dispatch:
 
-jobs: build: runs-on: ubuntu-latest
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-steps:
-  - name: Set up environment
-    run: |
-      mkdir -p app/src/main/res/values
+    steps:
+      - name: Set up project structure
+        run: |
+          mkdir -p app/src/main/res/values
+          
+          # AndroidManifest.xml
+          cat <<EOF > app/src/main/AndroidManifest.xml
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              package="com.hide.gesturebar"
+              android:sharedUserId="android.uid.system">
 
-      # AndroidManifest.xml
-      cat <<EOF > app/src/main/AndroidManifest.xml
-      <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-          package="com.hide.gesturebar"
-          android:sharedUserId="android.uid.system">
+              <application android:hasCode="false" />
 
-          <application android:hasCode="false" />
-
-          <overlay
-              android:targetPackage="com.android.systemui"
-              android:priority="999"
-              android:isStatic="true"
-              android:requiredSystemPropertyName="ro.boot.hardware"
-              android:requiredSystemPropertyValue="panther" />
-      </manifest>
-      EOF
-
-      # dimens.xml
-      cat <<EOF > app/src/main/res/values/dimens.xml
-      <resources>
-          <dimen name="navigation_bar_frame_height">0dp</dimen>
-          <dimen name="navigation_handle_height">0dp</dimen>
-          <dimen name="navigation_handle_width">0dp</dimen>
-          <dimen name="navigation_home_handle_width">0dp</dimen>
-          <dimen name="navigation_home_handle_height">0dp</dimen>
-      </resources>
-      EOF
-
-      # build.gradle
-      cat <<EOF > build.gradle
-      buildscript {
-          repositories {
-              google()
-              mavenCentral()
-          }
-          dependencies {
-              classpath 'com.android.tools.build:gradle:8.1.0'
-          }
-      }
-
-      allprojects {
-          repositories {
-              google()
-              mavenCentral()
-          }
-      }
-      EOF
-
-      # settings.gradle
-      echo "include ':app'" > settings.gradle
-
-      # app/build.gradle
-      mkdir -p app
-      cat <<EOF > app/build.gradle
-      apply plugin: 'com.android.application'
-
-      android {
-          compileSdk 34
-          defaultConfig {
-              applicationId "com.hide.gesturebar"
-              minSdk 29
-              targetSdk 34
-              versionCode 1
-              versionName "1.0"
-          }
-          buildTypes {
-              release {
-                  minifyEnabled false
-                  proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+              <overlay
+                  android:targetPackage="com.android.systemui"
+                  android:priority="999"
+                  android:isStatic="true"
+                  android:requiredSystemPropertyName="ro.boot.hardware"
+                  android:requiredSystemPropertyValue="panther" />
+          </manifest>
+          EOF
+          
+          # dimens.xml
+          cat <<EOF > app/src/main/res/values/dimens.xml
+          <resources>
+              <dimen name="navigation_bar_frame_height">0dp</dimen>
+              <dimen name="navigation_handle_height">0dp</dimen>
+              <dimen name="navigation_handle_width">0dp</dimen>
+              <dimen name="navigation_home_handle_width">0dp</dimen>
+              <dimen name="navigation_home_handle_height">0dp</dimen>
+          </resources>
+          EOF
+          
+          # build.gradle (project)
+          cat <<EOF > build.gradle
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:8.1.0'
               }
           }
-          aaptOptions {
-              additionalParameters '--auto-add-overlay'
+
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
           }
-          lintOptions {
-              checkReleaseBuilds false
-              abortOnError false
+          EOF
+
+          # settings.gradle
+          echo "include ':app'" > settings.gradle
+
+          # build.gradle (app)
+          cat <<EOF > app/build.gradle
+          apply plugin: 'com.android.application'
+
+          android {
+              compileSdk 34
+              defaultConfig {
+                  applicationId "com.hide.gesturebar"
+                  minSdk 29
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+              }
+              buildTypes {
+                  release {
+                      minifyEnabled false
+                      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+                  }
+              }
+              aaptOptions {
+                  additionalParameters '--auto-add-overlay'
+              }
+              lintOptions {
+                  checkReleaseBuilds false
+                  abortOnError false
+              }
           }
-      }
 
-      dependencies {}
-      EOF
+          dependencies {}
+          EOF
 
-      # proguard-rules.pro
-      echo "# no rules" > app/proguard-rules.pro
+          # proguard
+          echo "# no rules" > app/proguard-rules.pro
 
-      # Gradle Wrapper (downloaded automatically)
-      curl -s https://services.gradle.org/distributions/gradle-8.2-bin.zip -o gradle.zip
-      unzip gradle.zip
-      mv gradle-* gradle
-      mkdir -p gradle/wrapper
+          # gradle wrapper
+          curl -s https://services.gradle.org/distributions/gradle-8.2-bin.zip -o gradle.zip
+          unzip -q gradle.zip
+          mv gradle-* gradle
+          mkdir -p gradle/wrapper
 
-      cat <<EOF > gradle/wrapper/gradle-wrapper.properties
-      distributionBase=GRADLE_USER_HOME
-      distributionPath=wrapper/dists
-      zipStoreBase=GRADLE_USER_HOME
-      zipStorePath=wrapper/dists
-      distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip
-      EOF
+          cat <<EOF > gradle/wrapper/gradle-wrapper.properties
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          distributionUrl=https\\://services.gradle.org/distributions/gradle-8.2-bin.zip
+          EOF
 
-      cat <<EOF > gradlew
-      #!/usr/bin/env sh
-      ./gradle/bin/gradle "\$@"
-      EOF
-      chmod +x gradlew
+          cat <<EOF > gradlew
+          #!/usr/bin/env sh
+          ./gradle/bin/gradle "\$@"
+          EOF
+          chmod +x gradlew
 
-  - name: Set up JDK
-    uses: actions/setup-java@v3
-    with:
-      distribution: 'temurin'
-      java-version: 17
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: 17
 
-  - name: Build Overlay APK
-    run: ./gradlew assembleRelease
+      - name: Build Overlay APK
+        run: ./gradlew assembleRelease
 
-  - name: Upload APK
-    uses: actions/upload-artifact@v3
-    with:
-      name: HideGestureOverlay-APK
-      path: app/build/outputs/apk/release/*.apk
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: HideGestureOverlay-APK
+          path: app/build/outputs/apk/release/*.apk
