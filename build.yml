@@ -1,0 +1,122 @@
+name: Build Hide Gesture Overlay APK (Fixed Gradle Download)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up project structure
+        run: |
+          mkdir -p app/src/main/res/values
+
+          cat <<EOF > app/src/main/AndroidManifest.xml
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              package="com.hide.gesturebar"
+              android:sharedUserId="android.uid.system">
+
+              <application android:hasCode="false" />
+
+              <overlay
+                  android:targetPackage="com.android.systemui"
+                  android:priority="999"
+                  android:isStatic="true"
+                  android:requiredSystemPropertyName="ro.boot.hardware"
+                  android:requiredSystemPropertyValue="panther" />
+          </manifest>
+          EOF
+
+          cat <<EOF > app/src/main/res/values/dimens.xml
+          <resources>
+              <dimen name="navigation_bar_frame_height">0dp</dimen>
+              <dimen name="navigation_handle_height">0dp</dimen>
+              <dimen name="navigation_handle_width">0dp</dimen>
+              <dimen name="navigation_home_handle_width">0dp</dimen>
+              <dimen name="navigation_home_handle_height">0dp</dimen>
+          </resources>
+          EOF
+
+          cat <<EOF > build.gradle
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:8.1.0'
+              }
+          }
+
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          EOF
+
+          echo "include ':app'" > settings.gradle
+
+          cat <<EOF > app/build.gradle
+          apply plugin: 'com.android.application'
+
+          android {
+              compileSdk 34
+              defaultConfig {
+                  applicationId "com.hide.gesturebar"
+                  minSdk 29
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+              }
+              buildTypes {
+                  release {
+                      minifyEnabled false
+                      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+                  }
+              }
+              aaptOptions {
+                  additionalParameters '--auto-add-overlay'
+              }
+              lintOptions {
+                  checkReleaseBuilds false
+                  abortOnError false
+              }
+          }
+
+          dependencies {}
+          EOF
+
+          echo "# no rules" > app/proguard-rules.pro
+
+          wget -q https://services.gradle.org/distributions/gradle-8.2-bin.zip -O gradle.zip && unzip -q gradle.zip || (echo "❌ Gradle-Download fehlgeschlagen" && exit 1)
+          mv gradle-* gradle
+          mkdir -p gradle/wrapper
+
+          cat <<EOF > gradle/wrapper/gradle-wrapper.properties
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip
+          EOF
+
+          cat <<EOF > gradlew
+          #!/usr/bin/env sh
+          ./gradle/bin/gradle "$@"
+          EOF
+          chmod +x gradlew
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: 17
+
+      - name: Build Overlay APK
+        run: ./gradlew assembleRelease
+
+      - name: Manually zip APK output
+        run: zip -r hide_overlay_output.zip app/build/outputs/apk/release/
